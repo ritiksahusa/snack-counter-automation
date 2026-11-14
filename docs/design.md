@@ -1,17 +1,17 @@
 # Snack Counter Automation — Design
 
-**Draft:** This describes the planned solution. Domain data and in-memory offer/assignment handoff are implemented; budget accounting, reporting and integrations remain to be built and verified.
+**Draft:** Domain data, in-memory offer/assignment handoff, budget accounting, and monthly reporting are implemented as prototype services. The budget service is not yet wired into refill completion; chat and HR simulations remain planned.
 
 ## Goal and workflow
 
 The prototype coordinates one active refill at a time for each snack box. A volunteer or office coordinator reports a box as empty. The system offers it to an available volunteer in the office using round-robin order by employee ID. Each offer advances that office's rotation, including offers that are declined or expire; this spreads offers, not necessarily completed purchases. If an offered volunteer becomes unavailable or changes office, the offer moves on. Declines and expired offers or accepted assignments also cause a handoff. If no one is eligible, the refill stays open for an explicit retry.
 
-Before purchase, the volunteer records an expected amount. The system reserves that amount against the office's monthly budget and rejects a reservation that would exceed the available budget. Once the volunteer records the actual purchase and receipt, the system records the spend and submits a reimbursement claim to the simulated HR service. HR owns approval and payroll-currency reimbursement; the prototype shows the claim as pending until HR reports an outcome.
+Before purchase, the caller records an expected amount as a reservation against the office's local-currency monthly budget. Reservations and recorded purchases together cannot exceed the monthly cap. A purchase is recorded once against its actual purchase month; if that differs from its reservation month, the old reservation is released only after the actual month passes its cap check. An actual amount may exceed its estimate only when the remaining budget permits it. Unneeded reservations must be explicitly released; there is no reservation-expiry scheduler. The budget service is currently separate from the refill coordinator, so callers must connect purchase and completion operations. Receipt capture and HR submission remain planned.
 
 ## Main parts and data
 
 - **Refill service:** currently tracks volunteers, availability, active refills, offers, deadlines and the last person offered in each office. State is held in memory.
-- **Budget and report (planned):** track reservations and actual purchases in local currencies, then report office totals and a consolidated NOK total using a supplied monthly INR→NOK rate. Amounts use decimal values and an explicit currency.
+- **Budget and report:** the in-memory service tracks expected reservations and actual purchases against Oslo's 6,000 NOK and Bengaluru's 15,000 INR monthly limits. It reports each office in its local currency and provides combined NOK budget, spend, reserved, and remaining totals only when given an explicit positive NOK-per-INR rate. It rounds the converted INR total to two decimal places using half-up rounding; no live rate is fetched. The service is not yet connected to refill lifecycle operations.
 - **Chat interface (planned simulation):** record offers, reminders, handoffs and status notifications; no real chat integration.
 - **HR interface (planned simulation):** accept amount, purchase currency, description, receipt reference and employee ID; track claim outcomes. No real HR integration.
 

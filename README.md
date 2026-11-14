@@ -1,6 +1,6 @@
 # Snack Counter Automation
 
-A small Java prototype being developed to coordinate snack refills across the Oslo and Bengaluru offices. The current code models business data and coordinates refill offers, acceptance, and handoffs in memory. Budget checks, purchase accounting, reporting, and simulated integrations are not implemented yet.
+A small Java prototype being developed to coordinate snack refills across the Oslo and Bengaluru offices. The current code models business data, coordinates refill offers and handoffs, and tracks in-memory budget reservations, purchases, and monthly reports. The budget service is not yet wired into the refill coordinator; simulated chat and HR integrations are planned.
 
 ## Assignment deliverables
 
@@ -24,9 +24,11 @@ java -jar target/snack-counter-automation-1.0-SNAPSHOT.jar
 
 ## Scope and limitations
 
-This is an in-memory, single-process prototype. Data resets when it exits, and its synchronization does not coordinate multiple application instances. Chat and HR stand-ins are planned but not yet implemented; no real employee data, receipts, or claims are sent to external systems.
+This is an in-memory, single-process prototype. Data resets when it exits, and its synchronization does not coordinate multiple application instances. Budget reservations and purchases are keyed by refill ID in a standalone service; callers must connect it to the refill lifecycle. Chat and HR stand-ins are planned but not yet implemented; no real employee data, receipts, or claims are sent to external systems.
 
-Assignment expiry requires the caller to invoke `expireAssignments()`; there is no background scheduler. Completion only marks the box as refilled; it does not yet record an amount or receipt. An expired assignee who already purchased snacks needs manual follow-up: the prototype cannot record that late receipt yet and does not guarantee that a physical duplicate purchase is impossible.
+Budgets are NOK 6,000 per month for Oslo and INR 15,000 per month for Bengaluru. Reservations count against the office's local-currency cap; a purchase is recorded once and charged to its purchase month. Reports keep local totals separate and require an explicit INR-to-NOK rate for combined totals. Expiry of a budget reservation is explicit: release it when the refill will not proceed; there is no automatic reservation expiry.
+
+Assignment expiry requires the caller to invoke `expireAssignments()`; there is no background scheduler. Refill completion only marks the box as refilled; the coordinator is not yet connected to budget purchases or receipt records. An expired assignee who already purchased snacks needs manual follow-up: the prototype cannot record that late receipt yet and does not guarantee that a physical duplicate purchase is impossible.
 
 Offers rotate by employee ID separately for each office and skip unavailable volunteers. Each offer advances the rotation, even if declined or expired. Updating an offered volunteer's availability or office immediately returns any reassigned refill snapshots; accepted assignments remain with their current owner until completion or expiry.
 

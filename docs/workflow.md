@@ -15,7 +15,7 @@
 | 0. Repository setup | Maven Java project, source/test layout, README, design/workflow docs, private-notes exclusion | Java 17 compilation passes; Maven test attempt is blocked by the configured artifact mirror timing out; private notes and assignment PDF are ignored | Complete |
 | 1. Domain model | Office, volunteers, refill state, amount/currency, receipt and claim data | Nine model tests pass using Maven installation-default settings; workflow not yet implemented | Complete |
 | 2. Lifecycle and assignment | Open empty-box refill; round-robin volunteer offer; accept/decline; expiry/handoff; completion | Thirteen service tests and nine model tests pass; deadline tick and late-purchase limitations documented | Complete |
-| 3. Budget and report | Office-local monthly caps, reservation/spend logic, explicit FX input and combined report | Tests prove NOK/INR totals and no implicit currency mixing | Not started |
+| 3. Budget and report | Office-local monthly caps, reservation/spend logic, explicit FX input and combined report | Budget tests cover cap boundaries, concurrent reservations, releases, month changes, local currencies, explicit FX and rounding; budget service remains separate from lifecycle coordinator | Complete |
 | 4. Simulated integrations | Chat notifications and HR claim submit/status stand-ins | Test payload includes amount, currency, description, receipt, employee ID | Not started |
 | 5. Design and walkthrough | Keep design doc to 1–2 pages; verify all assignment deliverables and rehearse a 4–5 minute explanation | Full tests pass; requirement checklist complete | Not started |
 
@@ -35,7 +35,7 @@
 - [ ] A refill can move from empty report through purchase, HR claim, and reimbursement status.
 - [ ] Volunteer choice is fair and unavailable volunteers are skipped.
 - [ ] A refill cannot be committed by two volunteers; unfinished refills are handed off.
-- [ ] Office budgets and monthly totals are correct in NOK and INR; combined reporting states the FX assumption.
+- [x] Office budgets and monthly totals are correct in NOK and INR; combined reporting states the FX assumption.
 - [ ] Simulated chat and HR systems have clear, testable interfaces.
 - [ ] Automated tests pass.
 - [ ] README tells a reviewer how to run tests and states limitations.
