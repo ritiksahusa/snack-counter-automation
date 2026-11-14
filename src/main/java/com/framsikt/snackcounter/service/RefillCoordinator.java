@@ -1,6 +1,7 @@
 package com.framsikt.snackcounter.service;
 
 import com.framsikt.snackcounter.model.Office;
+import com.framsikt.snackcounter.model.ClaimStatus;
 import com.framsikt.snackcounter.model.RefillStatus;
 import com.framsikt.snackcounter.model.Volunteer;
 import java.time.Clock;
@@ -21,6 +22,7 @@ public final class RefillCoordinator {
     private final Clock clock;
     private final Duration offerTimeout;
     private final Duration completionTimeout;
+    private final ChatGateway chat;
     private final Map<String, Volunteer> volunteers = new HashMap<>();
     private final Map<String, Ticket> tickets = new HashMap<>();
     private final Map<Office, String> lastOffered = new EnumMap<>(Office.class);
@@ -49,9 +51,15 @@ public final class RefillCoordinator {
     }
 
     public RefillCoordinator(Clock clock, Duration offerTimeout, Duration completionTimeout) {
+        this(clock, offerTimeout, completionTimeout, event -> { });
+    }
+
+    public RefillCoordinator(Clock clock, Duration offerTimeout, Duration completionTimeout,
+                             ChatGateway chat) {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.offerTimeout = positive(offerTimeout);
         this.completionTimeout = positive(completionTimeout);
+        this.chat = Objects.requireNonNull(chat, "chat");
     }
 
     private static Duration positive(Duration duration) {
@@ -71,7 +79,9 @@ public final class RefillCoordinator {
         for (Ticket ticket : tickets.values()) {
             if (ticket.status == RefillStatus.OFFERED && volunteer.employeeId().equals(ticket.employeeId)
                     && (!volunteer.available() || volunteer.currentOffice() != ticket.office)) {
+                String previousEmployeeId = ticket.employeeId;
                 offerNext(ticket, now);
+                publishAssignmentChange(ticket, previousEmployeeId, now);
                 changed.add(ticket.snapshot());
             }
         }
@@ -90,7 +100,10 @@ public final class RefillCoordinator {
         }
         Ticket ticket = new Ticket(office, boxId);
         tickets.put(ticket.id, ticket);
+        chat.publish(new ChatEvent(ChatEvent.Type.REFILL_REPORTED, ticket.id, office, boxId,
+                null, null, null, clock.instant()));
         offerNext(ticket, clock.instant());
+        publishAssignmentChange(ticket, null, clock.instant());
         return ticket.snapshot();
     }
 
@@ -111,6 +124,7 @@ public final class RefillCoordinator {
         ticket.status = RefillStatus.ACCEPTED;
         ticket.offerId = null;
         ticket.deadline = now.plus(completionTimeout);
+        chat.publish(event(ChatEvent.Type.ACCEPTED, ticket, employeeId, employeeId, now));
         return ticket.snapshot();
     }
 
@@ -119,20 +133,64 @@ public final class RefillCoordinator {
         Instant now = clock.instant();
         expire(ticket, now);
         requireOffer(ticket, employeeId, offerId);
+        String previousEmployeeId = ticket.employeeId;
+        chat.publish(event(ChatEvent.Type.DECLINED, ticket, previousEmployeeId, null, now));
         offerNext(ticket, now);
+        publishAssignmentChange(ticket, previousEmployeeId, now);
         return ticket.snapshot();
     }
 
     /** Marks the box refilled only; purchase details and budget accounting are a later step. */
     public synchronized Snapshot markRefilled(String refillId, String employeeId) {
+        return markRefilled(refillId, employeeId, () -> { });
+    }
+
+    /** Runs purchase accounting only after ownership/deadline checks and before completion. */
+    public synchronized Snapshot markRefilled(String refillId, String employeeId, Runnable recordPurchase) {
         Ticket ticket = find(refillId);
+        Objects.requireNonNull(recordPurchase, "recordPurchase");
         Instant now = clock.instant();
         expire(ticket, now);
         if (ticket.status != RefillStatus.ACCEPTED || !Objects.equals(ticket.employeeId, employeeId)) {
             throw new IllegalStateException("Only the current assignee may complete this refill; handle late purchases manually");
         }
+        recordPurchase.run();
         ticket.status = RefillStatus.PURCHASED;
         ticket.deadline = null;
+        chat.publish(event(ChatEvent.Type.REFILLED, ticket, employeeId, employeeId, now));
+        return ticket.snapshot();
+    }
+
+    public synchronized Snapshot markClaimSubmitted(String refillId) {
+        Ticket ticket = find(refillId);
+        if (ticket.status != RefillStatus.PURCHASED) {
+            throw new IllegalStateException("A completed purchase is required before submitting a claim");
+        }
+        ticket.status = RefillStatus.CLAIM_SUBMITTED;
+        chat.publish(new ChatEvent(ChatEvent.Type.CLAIM_SUBMITTED, ticket.id, ticket.office, ticket.boxId,
+                null, ticket.employeeId, ClaimStatus.PENDING, clock.instant()));
+        return ticket.snapshot();
+    }
+
+    public synchronized void recordClaimStatus(String refillId, ClaimStatus status) {
+        Ticket ticket = find(refillId);
+        Objects.requireNonNull(status, "status");
+        if (ticket.status != RefillStatus.CLAIM_SUBMITTED
+                || (status != ClaimStatus.APPROVED && status != ClaimStatus.REJECTED)) {
+            throw new IllegalStateException("Only an approved or rejected submitted claim can be recorded here");
+        }
+        chat.publish(new ChatEvent(ChatEvent.Type.CLAIM_STATUS_UPDATED, ticket.id, ticket.office, ticket.boxId,
+                null, ticket.employeeId, status, clock.instant()));
+    }
+
+    public synchronized Snapshot markReimbursed(String refillId) {
+        Ticket ticket = find(refillId);
+        if (ticket.status != RefillStatus.CLAIM_SUBMITTED) {
+            throw new IllegalStateException("A submitted claim is required before reimbursement");
+        }
+        ticket.status = RefillStatus.REIMBURSED;
+        chat.publish(new ChatEvent(ChatEvent.Type.CLAIM_STATUS_UPDATED, ticket.id, ticket.office, ticket.boxId,
+            null, ticket.employeeId, ClaimStatus.REIMBURSED, clock.instant()));
         return ticket.snapshot();
     }
 
@@ -144,6 +202,7 @@ public final class RefillCoordinator {
         }
         ticket.attempted.clear();
         offerNext(ticket, clock.instant());
+        publishAssignmentChange(ticket, null, clock.instant());
         return ticket.snapshot();
     }
 
@@ -162,7 +221,9 @@ public final class RefillCoordinator {
     private boolean expire(Ticket ticket, Instant now) {
         if ((ticket.status == RefillStatus.OFFERED || ticket.status == RefillStatus.ACCEPTED)
                 && !now.isBefore(ticket.deadline)) {
+            String previousEmployeeId = ticket.employeeId;
             offerNext(ticket, now);
+            publishAssignmentChange(ticket, previousEmployeeId, now);
             return true;
         }
         return false;
@@ -192,6 +253,19 @@ public final class RefillCoordinator {
         ticket.employeeId = next;
         ticket.offerId = UUID.randomUUID().toString();
         ticket.deadline = now.plus(offerTimeout);
+    }
+
+    private void publishAssignmentChange(Ticket ticket, String previousEmployeeId, Instant now) {
+        ChatEvent.Type type = ticket.status == RefillStatus.OFFERED
+                ? (previousEmployeeId == null ? ChatEvent.Type.OFFERED : ChatEvent.Type.HANDOFF)
+                : ChatEvent.Type.UNASSIGNED;
+        chat.publish(event(type, ticket, previousEmployeeId, ticket.employeeId, now));
+    }
+
+    private static ChatEvent event(ChatEvent.Type type, Ticket ticket, String previousEmployeeId,
+                                   String employeeId, Instant now) {
+        return new ChatEvent(type, ticket.id, ticket.office, ticket.boxId,
+            previousEmployeeId, employeeId, null, now);
     }
 
     private static void requireOffer(Ticket ticket, String employeeId, String offerId) {
