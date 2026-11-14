@@ -1,0 +1,14 @@
+# Build output
+/target/
+
+# IDE and operating system files
+.idea/
+.vscode/
+.DS_Store
+*.iml
+
+# Personal preparation notes are deliberately not part of the submission
+/.private/
+
+# Assignment prompt is local reference material, not a deliverable
+/*.pdf
