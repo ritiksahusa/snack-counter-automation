@@ -1,11 +1,15 @@
 # Snack Counter Automation
 
-A small Java prototype being developed to coordinate snack refills across the Oslo and Bengaluru offices. It models business data, coordinates refill offers and handoffs, tracks office-local budgets, records purchases and receipt references, and submits reimbursement claims to simulated chat and HR systems.
+A Java 17 prototype for coordinating snack refills in Oslo and Bengaluru. It turns an empty-box report into an assigned purchase, tracks office spending, and simulates reimbursement without contacting real chat or HR systems.
 
-## Assignment deliverables
+## The refill story
 
-- **Design:** [docs/design.md](docs/design.md) — concise submission-facing design document.
-- **Working core and tests:** `src/main/java` and `src/test/java`.
+1. Someone reports an empty box. The coordinator offers the refill to an available volunteer in that office, rotating offers by employee ID.
+2. The volunteer accepts the current offer. The workflow reserves the expected cost against the office's monthly local-currency budget: NOK 6,000 for Oslo or INR 15,000 for Bengaluru.
+3. The volunteer records the actual purchase, description, and receipt reference. The budget service checks the actual purchase month and replaces the reservation with spend only if the cap allows it.
+4. The workflow submits a simulated HR claim with employee ID, amount/currency, description, and receipt reference. HR can approve or reject; approval is not payment. The refill reaches reimbursed only after HR reports reimbursement.
+
+The short design is in [docs/design.md](docs/design.md). Core logic is under `src/main/java`; tests are under `src/test/java`.
 
 ## Run the tests
 
@@ -15,28 +19,15 @@ Requires Java 17+ and Maven 3.8+.
 mvn test
 ```
 
-Run the demonstration once an application entry point is implemented:
+There is no standalone command-line application yet. The tests exercise the full simulated service workflow, including purchase, claim, reimbursement, budget rejection, and timeout handoff.
 
-```sh
-mvn package
-java -jar target/snack-counter-automation-1.0-SNAPSHOT.jar
-```
+## Scope and trade-offs
 
-## Scope and limitations
+The limits are deliberate for a small prototype:
 
-This is an in-memory, single-process prototype. Data resets when it exits, and its synchronization does not coordinate multiple application instances. `RefillWorkflow` joins assignment, budget reservation/purchase, receipt reference, and simulated claim submission. `InMemoryChatGateway` records lifecycle events; `InMemoryHrGateway` stores claim payloads and permits pending → approved/rejected → reimbursed transitions. Approval alone does not mean payment. These are local simulations: no real chat/HR systems, employee directory, receipt images, or claims are contacted or transmitted.
+- **Reliability:** State is in memory and synchronization covers only one process. Assignment expiry is caller-triggered, with no background scheduler. A purchase reported after reassignment needs manual follow-up.
+- **Integrations:** Chat and HR are simulated. There is no company login, inbound chat command, calendar/holiday integration, or HR timing/escalation. HR handles payroll-currency conversion.
+- **Evidence and insights:** A receipt is represented by a reference, not image data. The system records purchase descriptions but does not measure what snacks are actually consumed.
+- **Fairness:** Rotation balances offers, not completed purchases.
 
-Budgets are NOK 6,000 per month for Oslo and INR 15,000 per month for Bengaluru. Reservations count against the office's local-currency cap; a purchase is recorded once and charged to its purchase month. Reports keep local totals separate and require an explicit INR-to-NOK rate for combined totals. Expiry of a budget reservation is explicit: release it when the refill will not proceed; there is no automatic reservation expiry.
-
-Assignment expiry requires the caller to invoke `expireAssignments()`; there is no background scheduler. HR claim submission can be retried after purchase if the submission call fails, but a real external system would need durable state and idempotency guarantees. An expired assignee who already purchased snacks needs manual follow-up: the prototype cannot record that late receipt yet and does not guarantee that a physical duplicate purchase is impossible.
-
-Offers rotate by employee ID separately for each office and skip unavailable volunteers. Each offer advances the rotation, even if declined or expired. Updating an offered volunteer's availability or office immediately returns any reassigned refill snapshots; accepted assignments remain with their current owner until completion or expiry.
-
-## Working agreement
-
-The project is built in small, reviewable steps. Each step should be tested before it is approved and committed. Commit messages use two labeled sections:
-
-- **Business Summary:** behavior or problem addressed, in business terms.
-- **Technical Summary:** implementation and verification, in accessible technical terms.
-
-See [docs/workflow.md](docs/workflow.md) for the step/approval checklist. Personal interview notes belong in `.private/WORKLOG.md`, which is intentionally Git-ignored and must not be submitted. The assignment PDF is source material; do not include it in a submission unless explicitly requested.
+Combined monthly reports keep office totals in their local currencies and require an explicit INR-to-NOK exchange rate. Simulated chat and HR are in-memory stand-ins; no employee or receipt data is transmitted externally.

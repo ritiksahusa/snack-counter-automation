@@ -94,7 +94,7 @@ public final class RefillCoordinator {
             throw new IllegalArgumentException("boxId must not be blank");
         }
         boolean alreadyActive = tickets.values().stream().anyMatch(t -> t.office == office
-                && t.boxId.equals(boxId) && t.status != RefillStatus.PURCHASED);
+            && t.boxId.equals(boxId) && isActive(t.status));
         if (alreadyActive) {
             throw new IllegalStateException("A refill is already active for this box");
         }
@@ -140,7 +140,7 @@ public final class RefillCoordinator {
         return ticket.snapshot();
     }
 
-    /** Marks the box refilled only; purchase details and budget accounting are a later step. */
+    /** Marks the box refilled without purchase metadata; integrated callers should use the workflow. */
     public synchronized Snapshot markRefilled(String refillId, String employeeId) {
         return markRefilled(refillId, employeeId, () -> { });
     }
@@ -273,6 +273,10 @@ public final class RefillCoordinator {
                 || !Objects.equals(ticket.offerId, offerId) || !Objects.equals(ticket.employeeId, employeeId)) {
             throw new IllegalStateException("Offer is no longer valid for this employee");
         }
+    }
+
+    private static boolean isActive(RefillStatus status) {
+        return status == RefillStatus.OPEN || status == RefillStatus.OFFERED || status == RefillStatus.ACCEPTED;
     }
 
     private Ticket find(String refillId) {

@@ -1,30 +1,20 @@
 # Snack Counter Automation — Design
 
-**Draft:** Domain data, in-memory offer/assignment handoff, budget accounting, monthly reporting, and simulated chat/HR workflows are implemented as a single-process prototype.
+An empty snack box is easy to notice; the harder questions are who will refill it, whether the office can afford it, and whether the purchase was reimbursed. This prototype follows one refill from report to reimbursement, making ownership and spending visible without pretending to connect to company systems that are not part of the exercise.
 
-## Goal and workflow
+## The refill, from start to finish
 
-The prototype coordinates one active refill at a time for each snack box. A volunteer or office coordinator reports a box as empty. The system offers it to an available volunteer in the office using round-robin order by employee ID. Each offer advances that office's rotation, including offers that are declined or expire; this spreads offers, not necessarily completed purchases. If an offered volunteer becomes unavailable or changes office, the offer moves on. Declines and expired offers or accepted assignments also cause a handoff. If no one is eligible, the refill stays open for an explicit retry.
+1. **Someone reports an empty box.** The system opens one active refill for that office and box, avoiding competing assignments for the same need.
+2. **A volunteer gets a clear turn.** An available person in that office receives an offer and must accept it before the deadline. Offers rotate by employee ID; a decline or expiry hands the work on. If nobody is eligible, the refill stays open for a later retry.
+3. **The budget is checked before commitment.** On acceptance, the workflow reserves the expected cost against the monthly office limit: NOK 6,000 in Oslo or INR 15,000 in Bengaluru. Failed acceptance releases the reservation. When the volunteer records the actual purchase, the system checks the purchase month and replaces the estimate with actual spend only if the cap still allows it.
+4. **The claim has an explicit outcome.** The purchase amount, currency, description, receipt reference, and employee ID go to simulated HR. A claim can be pending, approved, rejected, or reimbursed. Approval is not payment; the refill is complete only when reimbursement is reported.
 
-When a volunteer accepts, the workflow reserves the expected amount against the office's local-currency monthly budget. Reservations and recorded purchases together cannot exceed the monthly cap. Decline/timeout handoffs release the reservation. A purchase is recorded once against its actual purchase month; if that differs from its reservation month, the old reservation is released only after the actual month passes its cap check. An actual amount may exceed its estimate only when the remaining budget permits it. Completion records the actual amount and a receipt reference, then the claim is submitted to simulated HR with the employee ID, description and purchase-currency amount. HR approval and rejection are distinct from reimbursement; the refill is marked reimbursed only after HR reports payment. Simulated chat records refill, offer, acceptance, decline, handoff, and completion events.
+This sequence keeps the important promise simple: each refill has an owner, each commitment is budget-aware, and each claim can be followed to its actual outcome. The chat simulation records lifecycle events, while the HR simulation stores claim details; neither sends data externally. Reports show each office in its own currency. A combined NOK total is produced only when the caller supplies a positive NOK-per-INR rate, so the prototype does not hide an exchange-rate assumption.
 
-## Main parts and data
+## What belongs in this prototype—and what does not
 
-- **Refill service:** tracks volunteers, availability, active refills, offers, deadlines and the last person offered in each office. State is held in memory and significant lifecycle events are sent through a `ChatGateway`.
-- **Workflow and budget:** `RefillWorkflow` joins the coordinator and budget service. Expected reservations and actual purchases are checked against Oslo's 6,000 NOK and Bengaluru's 15,000 INR monthly limits. Reports retain local currencies and provide combined NOK totals only with an explicit positive NOK-per-INR rate; conversion rounds to two decimals using half-up rounding.
-- **Chat simulation:** `InMemoryChatGateway` stores structured refill and claim-status events in memory. It does not send messages or include purchase amounts or receipt contents.
-- **HR simulation:** `InMemoryHrGateway` stores the claim payload (employee ID, amount in purchase currency, description, receipt reference and status). It models pending, approved, rejected and reimbursed outcomes with guarded transitions; approval is not payment.
+**Keep:** the small domain model, one active refill per box, explicit offers and deadlines, budget reservations and actual-purchase checks, monthly reports, and clear claim states. These rules address the assignment's core risks and are exercised by automated tests. Rotation spreads offers, but it does not promise equal completed purchases.
 
-## How this addresses today's problems
+**Leave out for now:** databases, multi-instance coordination, company login, live chat or HR connections, inbound chat commands, calendars and holiday handling, automatic expiry jobs, payroll conversion, receipt-image storage or OCR, consumption analytics, procurement-card processing, and deployment infrastructure. Those need real business policies, credentials, or operational requirements; adding them to a self-contained prototype would create complexity without validating the core workflow.
 
-- **Empty box with no owner:** each refill is assigned to one named volunteer and has a deadline.
-- **Duplicate purchases:** only one active refill is allowed per office/snack box, and synchronized acceptance allows a single winner.
-- **Work concentrated on a few people:** rotation distributes offers among available volunteers; declines and expiries cause a handoff. It does not guarantee an equal number of completed refills.
-- **Slow/unclear reimbursement:** claim status is tracked from submission through HR outcome, along with receipt and employee reference.
-- **Unknown spending:** office-local monthly totals and a consolidated report make spend visible and comparable.
-
-## Trade-offs and exclusions
-
-In-memory storage keeps the prototype small and easy to explain; all state is lost on restart, and synchronization only works within one application process. Production use would require durable storage, external-system idempotency, and cross-instance coordination. The prototype does not implement authentication, real chat/HR connections, receipt image storage or OCR, live exchange rates, snack-consumption analytics, procurement cards, or deployment. Claim amounts remain in the currency in which the purchase was made; payroll-currency conversion is left to HR and is not inferred from the employee's home office or payroll currency.
-
-Expiry requires an explicit caller-driven check, not a background scheduler. If a volunteer has purchased but reports completion after reassignment, manual follow-up is required; the current prototype cannot record that late receipt or prevent a duplicate physical purchase. The chat and HR gateways are local simulations, not production integrations.
+The boundary is deliberate: state is in memory and resets on restart, and synchronization covers only one process. Availability and expiry checks are supplied or triggered by the caller. A receipt is represented by a reference, not image data; HR timing and escalation are not automated. If a volunteer physically buys snacks after their assignment has been handed off, the case still needs manual follow-up. A production version should first add durable shared state and then connect approved identity, chat, and HR services behind the existing workflow boundaries.

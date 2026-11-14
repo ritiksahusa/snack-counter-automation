@@ -1,6 +1,7 @@
 package com.framsikt.snackcounter.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,6 +45,8 @@ class RefillWorkflowTest {
         var purchased = workflow.completePurchase(offer.id(), "traveler", PERIOD,
                 amount("875.50", SnackCurrency.INR), "Tea and coffee", new Receipt("receipt:demo-42"));
         assertEquals(RefillStatus.PURCHASED, purchased.status());
+        var nextRefill = workflow.reportEmpty(Office.BENGALURU, "tea-box");
+        assertNotEquals(offer.id(), nextRefill.id(), "A completed purchase allows the next refill cycle");
         assertEquals(new Amount(new BigDecimal("875.50"), SnackCurrency.INR),
                 budgets.report(PERIOD, BigDecimal.ONE).offices().stream()
                         .filter(row -> row.office() == Office.BENGALURU).findFirst().orElseThrow().spent());
@@ -65,7 +68,7 @@ class RefillWorkflowTest {
         assertEquals(ClaimStatus.REIMBURSED, workflow.getClaim(offer.id()).claim().status());
         assertThrows(IllegalStateException.class, () -> workflow.submitClaim(offer.id()));
 
-        assertEquals(1, chat.events().stream()
+        assertEquals(2, chat.events().stream()
                 .filter(event -> event.type() == ChatEvent.Type.REFILL_REPORTED).count());
         assertTrue(chat.events().stream().anyMatch(event -> event.type() == ChatEvent.Type.OFFERED));
         assertTrue(chat.events().stream().anyMatch(event -> event.type() == ChatEvent.Type.ACCEPTED));

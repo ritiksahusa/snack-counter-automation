@@ -4,7 +4,7 @@ import com.framsikt.snackcounter.model.Office;
 import com.framsikt.snackcounter.model.ClaimStatus;
 import java.time.Instant;
 
-/** A simulated chat notification; it contains identifiers and state, not personal data. */
+/** A simulated event containing refill and participant identifiers; it carries no receipt content. */
 public record ChatEvent(Type type, String refillId, Office office, String boxId,
                         String previousEmployeeId, String employeeId, ClaimStatus claimStatus,
                         Instant occurredAt) {
