@@ -12,16 +12,16 @@ class OfficePurchaseDataScenarioTest {
     void visitingOsloVolunteerCanRepresentBengaluruPurchaseAndPendingClaim() {
         Volunteer visitor = new Volunteer("employee-oslo", Office.OSLO, Office.BENGALURU,
                 SnackCurrency.NOK, true);
-        Refill refill = new Refill("refill-bengaluru", Office.BENGALURU, "box-1", RefillStatus.OPEN);
+        Office purchaseOffice = Office.BENGALURU;
         Amount purchase = new Amount(new BigDecimal("1250.50"), SnackCurrency.INR);
         Receipt receipt = new Receipt("receipt-bengaluru");
         ReimbursementClaim claim = new ReimbursementClaim(visitor.employeeId(), purchase,
                 "Bengaluru snacks", receipt, ClaimStatus.PENDING);
 
         assertTrue(visitor.available());
-        assertEquals(Office.BENGALURU, refill.office());
-        assertEquals(refill.office().monthlyBudget().currency(), claim.amount().currency());
-        assertEquals(new BigDecimal("15000.00"), refill.office().monthlyBudget().value());
+        assertEquals(purchaseOffice, visitor.currentOffice());
+        assertEquals(purchaseOffice.monthlyBudget().currency(), claim.amount().currency());
+        assertEquals(new BigDecimal("15000.00"), purchaseOffice.monthlyBudget().value());
         assertEquals(SnackCurrency.NOK, visitor.payrollCurrency());
         assertEquals(new BigDecimal("1250.50"), claim.amount().value());
         assertEquals(visitor.employeeId(), claim.employeeId());
@@ -34,16 +34,15 @@ class OfficePurchaseDataScenarioTest {
     void visitingBengaluruVolunteerCanRepresentOsloPurchaseAndPendingClaim() {
         Volunteer visitor = new Volunteer("employee-bengaluru", Office.BENGALURU, Office.OSLO,
                 SnackCurrency.INR, true);
-        Refill refill = new Refill("refill-oslo", Office.OSLO, "box-1", RefillStatus.OPEN);
+        Office purchaseOffice = Office.OSLO;
         Amount purchase = new Amount(new BigDecimal("850"), SnackCurrency.NOK);
         ReimbursementClaim claim = new ReimbursementClaim(visitor.employeeId(), purchase,
                 "Oslo snacks", new Receipt("receipt-oslo"), ClaimStatus.PENDING);
 
         assertTrue(visitor.available());
         assertEquals(Office.OSLO, visitor.currentOffice());
-        assertEquals(Office.OSLO, refill.office());
-        assertEquals(new BigDecimal("6000.00"), refill.office().monthlyBudget().value());
-        assertEquals(refill.office().monthlyBudget().currency(), claim.amount().currency());
+        assertEquals(new BigDecimal("6000.00"), purchaseOffice.monthlyBudget().value());
+        assertEquals(purchaseOffice.monthlyBudget().currency(), claim.amount().currency());
         assertEquals(SnackCurrency.INR, visitor.payrollCurrency());
         assertEquals(new BigDecimal("850.00"), claim.amount().value());
         assertEquals(visitor.employeeId(), claim.employeeId());

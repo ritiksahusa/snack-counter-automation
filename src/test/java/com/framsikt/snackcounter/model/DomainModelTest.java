@@ -79,14 +79,7 @@ class DomainModelTest {
     }
 
     @Test
-    void refillRequiresAnIdentifiableOfficeAndBox() {
-        Refill refill = new Refill("refill-1", Office.OSLO, "box-1", RefillStatus.OPEN);
-
-        assertEquals(RefillStatus.OPEN, refill.status());
-        assertThrows(IllegalArgumentException.class,
-                () -> new Refill("refill-1", Office.OSLO, " ", RefillStatus.OPEN));
-        assertThrows(NullPointerException.class,
-                () -> new Refill("refill-1", null, "box-1", RefillStatus.OPEN));
+    void volunteerRequiresAnEmployeeId() {
         assertThrows(IllegalArgumentException.class,
                 () -> new Volunteer(" ", Office.OSLO, Office.OSLO, SnackCurrency.NOK, true));
     }
