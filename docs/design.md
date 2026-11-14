@@ -1,5 +1,7 @@
 # Snack Counter Automation — Design
 
+**Draft:** This describes the planned solution. Currently only the domain data and money validation are implemented; the workflow and integrations remain to be built and verified.
+
 ## Goal and workflow
 
 The prototype replaces informal refill messages with one visible, owned refill at a time for each snack box. A volunteer or office coordinator reports a box as empty. The system offers the refill to an available volunteer with the fewest recent assignments (stable tie-break). The volunteer accepts or declines. If they decline or the offer expires, the system offers it to the next eligible person; an accepted refill that is not completed by its deadline is also handed off.

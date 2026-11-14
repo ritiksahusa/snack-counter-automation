@@ -1,6 +1,6 @@
 # Snack Counter Automation
 
-A small Java prototype for coordinating snack refills across the Oslo and Bengaluru offices. It demonstrates volunteer assignment, budget checks, reimbursement claims, and monthly reporting with simulated chat and HR systems.
+A small Java prototype being developed to coordinate snack refills across the Oslo and Bengaluru offices. The current step defines the office, volunteer, money, refill, receipt, and claim data; assignment, budget checks, reporting, and simulated integrations are not implemented yet.
 
 ## Assignment deliverables
 

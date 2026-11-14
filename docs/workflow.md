@@ -11,9 +11,9 @@
 ## Steps and approval gates
 
 | Step | Work | Evidence / approval gate | Status |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 0. Repository setup | Maven Java project, source/test layout, README, design/workflow docs, private-notes exclusion | Java 17 compilation passes; Maven test attempt is blocked by the configured artifact mirror timing out; private notes and assignment PDF are ignored | Complete |
-| 1. Domain model | Office, volunteers, refill state, money/currency, purchase and claim data | Names/states explainable without framework knowledge | Not started |
+| 1. Domain model | Office, volunteers, refill state, amount/currency, receipt and claim data | Nine model tests pass using Maven installation-default settings; workflow not yet implemented | Complete |
 | 2. Lifecycle and assignment | Open empty-box refill; fair volunteer offer; accept/decline; expiry/handoff; completion | Tests prove one owner and reassignment | Not started |
 | 3. Budget and report | Office-local monthly caps, reservation/spend logic, explicit FX input and combined report | Tests prove NOK/INR totals and no implicit currency mixing | Not started |
 | 4. Simulated integrations | Chat notifications and HR claim submit/status stand-ins | Test payload includes amount, currency, description, receipt, employee ID | Not started |
@@ -23,7 +23,7 @@
 
 1. Make one small, coherent change addressing a listed step.
 2. Review it in business terms: which operational problem does it solve? Review it in accessible technical terms: where is the rule enforced and how is it tested?
-3. Run focused tests, then the full test suite when practical. Fix failures before proceeding.
+3. Run focused and full tests when practical; add end-to-end scenarios as real workflow operations become available. Record exactly what was tested and fix failures before proceeding.
 4. Update the status/evidence table and the README/design document if the user-facing behavior or assumptions changed.
 5. Request/review approval of the step before committing. Do not assume approval merely because the implementation exists.
 6. After approval, create one focused commit. Use a message body with `Business Summary:` and `Technical Summary:` sections, including key decisions and test evidence.
