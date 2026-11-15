@@ -13,17 +13,17 @@
 
 ```mermaid
 flowchart LR
-	A[📣 Empty box reported] --> B[🔄 Offer to an available volunteer]
-	B --> C{Accepts in time?}
-	C -- No: decline or expiry --> B
-	C -- Yes --> D[💰 Reserve office budget]
-	D --> E[🛒 Record purchase and receipt reference]
-	E --> F{Actual spend within cap?}
-	F -- No --> G[⚠️ Keep purchase unrecorded; resolve budget issue]
-	F -- Yes --> H[🧾 Submit claim to simulated HR]
-	H --> I{HR outcome}
-	I -- Pending / approved / rejected --> H
-	I -- Reimbursed --> J[✅ Refill complete]
+ A[📣 Empty box reported] --> B[🔄 Offer to an available volunteer]
+ B --> C{Accepts in time?}
+ C -- No: decline or expiry --> B
+ C -- Yes --> D[💰 Reserve office budget]
+ D --> E[🛒 Record purchase and receipt reference]
+ E --> F{Actual spend within cap?}
+ F -- No --> G[⚠️ Keep purchase unrecorded; resolve budget issue]
+ F -- Yes --> H[🧾 Submit claim to simulated HR]
+ H --> I{HR outcome}
+ I -- Pending / approved / rejected --> H
+ I -- Reimbursed --> J[✅ Refill complete]
 ```
 
 <details>
