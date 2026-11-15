@@ -1,20 +1,32 @@
 # Snack Counter Automation — Design
 
-An empty snack box is easy to notice; the harder questions are who will refill it, whether the office can afford it, and whether the purchase was reimbursed. This prototype follows one refill from report to reimbursement, making ownership and spending visible without pretending to connect to company systems that are not part of the exercise.
+An empty snack box is easy to notice; the harder questions are who will refill it, whether the office can afford it, and whether the purchase was reimbursed. This Java 17 prototype makes one refill traceable from report to outcome while keeping its boundaries clear: chat and HR are simulated, and state is held in memory.
 
-## The refill, from start to finish
+## 1. From empty to reimbursed
 
-1. **Someone reports an empty box.** The system opens one active refill for that office and box, avoiding competing assignments for the same need.
-2. **A volunteer gets a clear turn.** An available person in that office receives an offer and must accept it before the deadline. Offers rotate by employee ID; a decline or expiry hands the work on. If nobody is eligible, the refill stays open for a later retry.
-3. **The budget is checked before commitment.** On acceptance, the workflow reserves the expected cost against the monthly office limit: NOK 6,000 in Oslo or INR 15,000 in Bengaluru. Failed acceptance releases the reservation. When the volunteer records the actual purchase, the system checks the purchase month and replaces the estimate with actual spend only if the cap still allows it.
-4. **The claim has an explicit outcome.** The purchase amount, currency, description, receipt reference, and employee ID go to simulated HR. A claim can be pending, approved, rejected, or reimbursed. Approval is not payment; the refill is complete only when reimbursement is reported.
+1. **Report:** A volunteer or office coordinator reports an empty box. The system opens one active refill for that office and box.
+2. **Assign:** The coordinator offers it to an available volunteer in the same office, rotating by employee ID. The volunteer must accept the current offer before its deadline. A decline, expiry, or changed availability hands the work on; when nobody is eligible, the refill remains open for retry.
+3. **Reserve and buy:** During acceptance, the workflow reserves the expected cost against that office’s monthly local-currency limit—NOK 6,000 in Oslo or INR 15,000 in Bengaluru. If acceptance fails, the reservation is released. Once the current owner records a purchase, the budget service checks its actual month and amount before replacing the estimate with spend.
+4. **Submit and close:** The workflow submits a claim to simulated HR. HR records pending, approved, rejected, or reimbursed status. Approval is not payment: the refill reaches reimbursed only after HR reports reimbursement.
 
-This sequence keeps the important promise simple: each refill has an owner, each commitment is budget-aware, and each claim can be followed to its actual outcome. The chat simulation records lifecycle events, while the HR simulation stores claim details; neither sends data externally. Reports show each office in its own currency. A combined NOK total is produced only when the caller supplies a positive NOK-per-INR rate, so the prototype does not hide an exchange-rate assumption.
+## 2. Main parts and the data they keep
 
-## What belongs in this prototype—and what does not
+- **Domain records** describe offices, volunteers, refills, purchases, receipts, and claims. A volunteer has an employee ID, home/current office, payroll currency, and availability. A refill has an ID, box and office, status, owner/offer details, and deadline. Purchase and claim data include the employee ID, amount and currency, purchase month, description, receipt reference, and claim status.
+- **Refill coordinator** owns assignment rules and lifecycle transitions. It tracks volunteer availability, active refills, offer tokens/deadlines, and per-office rotation. A `ChatGateway` receives lifecycle events; the in-memory implementation stores events, not purchase or receipt contents.
+- **Workflow and budget service** connect acceptance, purchase, and claim submission. The budget service keeps reservations and actual purchases by refill, office, month, and local-currency amount; reports show local totals and optionally a combined NOK total using an explicitly supplied positive INR-to-NOK rate.
+- **HR gateway** receives a claim containing employee ID, purchase amount/currency, description, and receipt reference, then tracks its status. The in-memory implementation is a testable stand-in, not an external integration.
 
-**Keep:** the small domain model, one active refill per box, explicit offers and deadlines, budget reservations and actual-purchase checks, monthly reports, and clear claim states. These rules address the assignment's core risks and are exercised by automated tests. Rotation spreads offers, but it does not promise equal completed purchases.
+## 3. How the design prevents the stated problems
 
-**Leave out for now:** databases, multi-instance coordination, company login, live chat or HR connections, inbound chat commands, calendars and holiday handling, automatic expiry jobs, payroll conversion, receipt-image storage or OCR, consumption analytics, procurement-card processing, and deployment infrastructure. Those need real business policies, credentials, or operational requirements; adding them to a self-contained prototype would create complexity without validating the core workflow.
+- **Unowned or duplicated work:** only one active refill is allowed per office/box. A named, time-limited offer and guarded acceptance identify the owner; declines and expiries trigger handoff. Synchronized lifecycle operations prevent two volunteers from accepting the same offer.
+- **Work falling repeatedly to the same people:** per-office round-robin rotates offers and skips unavailable volunteers. This balances opportunities, not completed purchases.
+- **Overspending or unclear totals:** expected costs are reserved before acceptance, and the actual purchase must pass the same office/month cap check. Oslo and Bengaluru totals remain in NOK and INR; combined reporting makes its exchange-rate input explicit.
+- **Unclear reimbursement:** claim status is tracked separately from refill status, so approval cannot be mistaken for payment. Receipt and employee references travel with the simulated claim.
 
-The boundary is deliberate: state is in memory and resets on restart, and synchronization covers only one process. Availability and expiry checks are supplied or triggered by the caller. A receipt is represented by a reference, not image data; HR timing and escalation are not automated. If a volunteer physically buys snacks after their assignment has been handed off, the case still needs manual follow-up. A production version should first add durable shared state and then connect approved identity, chat, and HR services behind the existing workflow boundaries.
+## 4. Trade-offs and deliberate exclusions
+
+**Keep the prototype focused:** the domain rules, assignment and handoff, budget reservations and reports, claim lifecycle, simulated gateway boundaries, and automated tests. These directly demonstrate the requested workflow without adding infrastructure that does not validate it.
+
+**Do not build yet:** a database or multi-instance coordination, company login, live chat/HR connections or inbound chat commands, calendar/holiday automation, a background expiry scheduler, payroll-currency conversion, receipt-image storage/OCR, snack-consumption analytics, procurement-card processing, or deployment infrastructure. These require real policies, credentials, or operational decisions.
+
+The trade-off is that state resets on restart and synchronization covers one process. Availability and expiry checks are supplied or triggered by the caller. A receipt is a reference, not image data; HR timing and escalation are not automated. A purchase made after reassignment needs manual follow-up, and rotation cannot guarantee equal completed purchases. A production version should begin with durable shared state, then connect approved identity, chat, and HR services behind the existing boundaries.
