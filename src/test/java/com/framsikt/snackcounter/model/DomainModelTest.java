@@ -56,6 +56,9 @@ class DomainModelTest {
         assertEquals(SnackCurrency.NOK, visitor.payrollCurrency());
         assertEquals(SnackCurrency.INR, visitor.currentOffice().monthlyBudget().currency());
         assertTrue(visitor.available());
+        assertEquals(EmploymentType.VOLUNTEER, visitor.employmentType());
+        assertEquals(EmploymentType.CONTRACTOR, new Volunteer("contractor", Office.OSLO, Office.OSLO,
+                SnackCurrency.NOK, true, EmploymentType.CONTRACTOR).employmentType());
         assertFalse(new Volunteer("employee-2", Office.BENGALURU, Office.BENGALURU,
                 SnackCurrency.INR, false).available());
     }

@@ -60,6 +60,7 @@ The tests are the runnable demonstration: they cover the refill lifecycle, assig
 - **Refill coordination:** offers, acceptance, deadlines, and handoffs.
 - **Budget service:** reservations, actual purchases, and monthly reports.
 - **Simulated chat and HR:** local, testable gateways; no external messages or claims are sent.
+- **Claim reporting:** submitted reimbursement totals grouped by volunteer, employee, or contractor and currency.
 - **Automated tests:** domain rules through end-to-end service workflows.
 - **[Design note](docs/design.md):** the decisions, boundaries, and deliberate exclusions.
 

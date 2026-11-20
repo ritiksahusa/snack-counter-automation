@@ -20,6 +20,7 @@ public final class RefillWorkflow {
     private final RefillCoordinator refills;
     private final BudgetService budgets;
     private final HrGateway hr;
+    private final Map<String, Volunteer> volunteers = new HashMap<>();
     private final Map<String, ReimbursementClaim> claimsAwaitingSubmission = new HashMap<>();
     private final Set<String> activeReservations = new HashSet<>();
 
@@ -30,7 +31,9 @@ public final class RefillWorkflow {
     }
 
     public synchronized List<RefillCoordinator.Snapshot> upsertVolunteer(Volunteer volunteer) {
+        Objects.requireNonNull(volunteer, "volunteer");
         List<RefillCoordinator.Snapshot> changed = refills.upsertVolunteer(volunteer);
+        volunteers.put(volunteer.employeeId(), volunteer);
         changed.forEach(snapshot -> releaseReservation(snapshot.id()));
         return changed;
     }
@@ -77,8 +80,12 @@ public final class RefillWorkflow {
                                                                       Amount actualAmount,
                                                                       String description,
                                                                       Receipt receipt) {
-        ReimbursementClaim claim = new ReimbursementClaim(employeeId, actualAmount, description,
-                receipt, ClaimStatus.PENDING);
+        Volunteer claimant = volunteers.get(employeeId);
+        if (claimant == null) {
+            throw new IllegalStateException("Claimant is not registered");
+        }
+        ReimbursementClaim claim = new ReimbursementClaim(employeeId, claimant.employmentType(), actualAmount,
+                description, receipt, ClaimStatus.PENDING);
         RefillCoordinator.Snapshot completed = refills.markRefilled(refillId, employeeId,
                 () -> budgets.recordPurchase(refillId, purchasePeriod, actualAmount));
         activeReservations.remove(refillId);
@@ -115,6 +122,10 @@ public final class RefillWorkflow {
 
     public synchronized HrGateway.Submission getClaim(String refillId) {
         return hr.getSubmission(refillId);
+    }
+
+    public synchronized ClaimReport claimReport() {
+        return hr.claimReport();
     }
 
     private void releaseReservation(String refillId) {

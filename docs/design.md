@@ -11,10 +11,10 @@ An empty snack box is easy to notice; the harder questions are who will refill i
 
 ## 2. Main parts and the data they keep
 
-- **Domain records** describe offices, volunteers, refills, purchases, receipts, and claims. A volunteer has an employee ID, home/current office, payroll currency, and availability. A refill has an ID, box and office, status, owner/offer details, and deadline. Purchase and claim data include the employee ID, amount and currency, purchase month, description, receipt reference, and claim status.
+- **Domain records** describe offices, volunteers, refills, purchases, receipts, and claims. A claimant has an employee ID, employment type (volunteer, employee, or contractor), home/current office, payroll currency, and availability. A refill has an ID, box and office, status, owner/offer details, and deadline. Purchase and claim data include the employee ID and type, amount and currency, purchase month, description, receipt reference, and claim status.
 - **Refill coordinator** owns assignment rules and lifecycle transitions. It tracks volunteer availability, active refills, offer tokens/deadlines, and per-office rotation. A `ChatGateway` receives lifecycle events; the in-memory implementation stores events, not purchase or receipt contents.
 - **Workflow and budget service** connect acceptance, purchase, and claim submission. The budget service keeps reservations and actual purchases by refill, office, month, and local-currency amount; reports show local totals and optionally a combined NOK total using an explicitly supplied positive INR-to-NOK rate.
-- **HR gateway** receives a claim containing employee ID, purchase amount/currency, description, and receipt reference, then tracks its status. The in-memory implementation is a testable stand-in, not an external integration.
+- **HR gateway** receives a claim containing employee ID and type, purchase amount/currency, description, and receipt reference, then tracks its status. Its report totals submitted claims by employment type and currency, avoiding invalid cross-currency sums. The in-memory implementation is a testable stand-in, not an external integration.
 
 ## 3. How the design prevents the stated problems
 
