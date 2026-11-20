@@ -1,7 +1,13 @@
 package com.framsikt.snackcounter.service;
 
 import com.framsikt.snackcounter.model.ClaimStatus;
+import com.framsikt.snackcounter.model.Amount;
+import com.framsikt.snackcounter.model.EmploymentType;
 import com.framsikt.snackcounter.model.ReimbursementClaim;
+import com.framsikt.snackcounter.model.SnackCurrency;
+import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -46,10 +52,40 @@ public final class InMemoryHrGateway implements HrGateway {
             throw new IllegalStateException("Invalid HR claim status transition: " + previous + " to " + status);
         }
         ReimbursementClaim updatedClaim = new ReimbursementClaim(current.claim().employeeId(),
-                current.claim().amount(), current.claim().description(), current.claim().receipt(), status);
+                current.claim().employmentType(), current.claim().amount(), current.claim().description(),
+                current.claim().receipt(), status);
         Submission updated = new Submission(current.refillId(), updatedClaim);
         submissions.put(refillId, updated);
         return updated;
+    }
+
+    @Override
+    public synchronized ClaimReport claimReport() {
+        Map<EmploymentType, Map<SnackCurrency, Total>> totals = new EnumMap<>(EmploymentType.class);
+        submissions.values().stream().map(Submission::claim).forEach(claim -> {
+            Map<SnackCurrency, Total> byCurrency = totals.computeIfAbsent(claim.employmentType(),
+                    ignored -> new EnumMap<>(SnackCurrency.class));
+            byCurrency.computeIfAbsent(claim.amount().currency(), ignored -> new Total())
+                    .add(claim.amount().value());
+        });
+        return new ClaimReport(totals.entrySet().stream()
+                .flatMap(type -> type.getValue().entrySet().stream()
+                        .map(currency -> new ClaimReport.Row(type.getKey(), currency.getKey(),
+                                currency.getValue().count,
+                                new Amount(currency.getValue().amount, currency.getKey()))))
+                .sorted(Comparator.comparing(ClaimReport.Row::employmentType)
+                        .thenComparing(ClaimReport.Row::currency))
+                .toList());
+    }
+
+    private static final class Total {
+        private long count;
+        private BigDecimal amount = BigDecimal.ZERO;
+
+        private void add(BigDecimal value) {
+            count++;
+            amount = amount.add(value);
+        }
     }
 
     private static String requireRefillId(String refillId) {

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.framsikt.snackcounter.model.Amount;
 import com.framsikt.snackcounter.model.ClaimStatus;
+import com.framsikt.snackcounter.model.EmploymentType;
 import com.framsikt.snackcounter.model.Office;
 import com.framsikt.snackcounter.model.Receipt;
 import com.framsikt.snackcounter.model.RefillStatus;
@@ -35,7 +36,7 @@ class RefillWorkflowTest {
     @Test
     void refillPurchaseAndHrReimbursementRunEndToEndInLocalOfficeCurrency() {
         workflow.upsertVolunteer(new Volunteer("traveler", Office.OSLO, Office.BENGALURU,
-                SnackCurrency.NOK, true));
+                SnackCurrency.NOK, true, EmploymentType.EMPLOYEE));
 
         var offer = workflow.reportEmpty(Office.BENGALURU, "tea-box");
         var accepted = workflow.accept(offer.id(), "traveler", offer.offerId(), PERIOD,
@@ -54,6 +55,7 @@ class RefillWorkflowTest {
         HrGateway.Submission submitted = workflow.submitClaim(offer.id());
         ReimbursementClaim payload = submitted.claim();
         assertEquals("traveler", payload.employeeId());
+        assertEquals(EmploymentType.EMPLOYEE, payload.employmentType());
         assertEquals(amount("875.50", SnackCurrency.INR), payload.amount());
         assertEquals("Tea and coffee", payload.description());
         assertEquals(new Receipt("receipt:demo-42"), payload.receipt());
@@ -66,6 +68,7 @@ class RefillWorkflowTest {
         workflow.updateClaimStatus(offer.id(), ClaimStatus.REIMBURSED);
         assertEquals(RefillStatus.REIMBURSED, coordinator.get(offer.id()).status());
         assertEquals(ClaimStatus.REIMBURSED, workflow.getClaim(offer.id()).claim().status());
+        assertEquals(amount("875.50", SnackCurrency.INR), workflow.claimReport().rows().get(0).totalClaimed());
         assertThrows(IllegalStateException.class, () -> workflow.submitClaim(offer.id()));
 
         assertEquals(2, chat.events().stream()

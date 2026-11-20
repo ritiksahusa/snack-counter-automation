@@ -12,4 +12,6 @@ public interface HrGateway {
     Submission getSubmission(String refillId);
 
     Submission updateStatus(String refillId, ClaimStatus status);
+
+    ClaimReport claimReport();
 }
